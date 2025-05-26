@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atrapa las Frutas</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #6DD5FA, #FFFFFF);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+        .game-container {
+            position: relative;
+            width: 600px;
+            height: 700px;
+            /* Fondo verde claro con degradado hacia abajo */
+            background: linear-gradient(to bottom, #d0f0c0, #a0d080);
+            overflow: hidden;
+            border: 4px solid #333;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            display: none;
+        }
+        canvas {
+            display: block;
+        }
+        #startButton, #restartButton {
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #FF6A00, #EE0979);
+            border: none;
+            border-radius: 30px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin: 10px;
+        }
+        #startButton:hover, #restartButton:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        #winMessage {
+            display: none;
+            position: absolute;
+            top: 30%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+            background: linear-gradient(45deg, #00F260, #0575E6);
+            padding: 20px 40px;
+            border-radius: 35px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            animation: pulse 1s infinite alternate;
+            z-index: 10;
+        }
+        @keyframes pulse {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        #scoreDisplay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<button id="startButton">Iniciar Juego</button>
+<div class="game-container" id="gameContainer">
+    <div id="scoreDisplay">Puntos: 0</div>
+    <canvas id="gameCanvas" width="600" height="700"></canvas>
+    <div id="winMessage">
+        ¡Ganaste!<br>
+        <button id="restartButton">Reiniciar</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const startButton = document.getElementById("startButton");
+    const restartButton = document.getElementById("restartButton");
+    const winMessage = document.getElementById("winMessage");
+    const gameContainer = document.getElementById("gameContainer");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+
+    const dimensions = {
+        Canasta: { w: 190, h: 200 },
+        Mango: { w: 75, h: 100 },
+        Mora: { w: 75, h: 100 },
+        Naranja: { w: 75, h: 100 },
+        Pina: { w: 75, h: 100 },
+        Banano: { w: 75, h: 100 },
+        JugoMango: { w: 214, h: 629 },
+        JugoMora: { w: 214, h: 629 },
+        JugoNaranja: { w: 214, h: 629 },
+        JugoTropical: { w: 214, h: 629 }
+    };
+
+    const scale = { fruit: 0.5, basket: 0.5, juice: 0.2 };
+    const images = {};
+    const assetList = [
+        { name: 'Canasta', src: 'Sprites/Canasta.png' },
+        { name: 'Mango', src: 'Sprites/Mango.png' },
+        { name: 'Mora', src: 'Sprites/Mora.png' },
+        { name: 'Naranja', src: 'Sprites/Naranja.png' },
+        { name: 'Pina', src: 'Sprites/Pina.png' },
+        { name: 'Banano', src: 'Sprites/Banano.png' },
+        { name: 'JugoMango', src: 'Sprites/JugoMango.png' },
+        { name: 'JugoMora', src: 'Sprites/JugoMora.png' },
+        { name: 'JugoNaranja', src: 'Sprites/JugoNaranja.png' },
+        { name: 'JugoTropical', src: 'Sprites/JugoTropical.png' }
+    ];
+    let assetsLoaded = 0;
+    assetList.forEach(asset => {
+        images[asset.name] = new Image();
+        images[asset.name].src = asset.src;
+        images[asset.name].onload = () => assetsLoaded++;
+    });
+
+    const basket = { x: 0, y: 0, width: 0, height: 0, speed: 6, image: null };
+    let fruits = [];
+    let score = 0;
+    let gameRunning = false;
+
+    function resetGame() {
+        score = 0;
+        fruits = [];
+        scoreDisplay.textContent = 'Puntos: 0';
+        winMessage.style.display = 'none';
+        changeBasketSprite('Canasta');
+        gameRunning = true;
+        requestAnimationFrame(updateGame);
+    }
+
+    startButton.addEventListener('click', () => {
+        if (assetsLoaded === assetList.length) {
+            gameContainer.style.display = 'block';
+            startButton.style.display = 'none';
+            resetGame();
+        } else {
+            alert("Cargando recursos, por favor espera...");
+        }
+    });
+
+    restartButton.addEventListener('click', () => {
+        resetGame();
+    });
+
+    function drawBasket() {
+        ctx.drawImage(basket.image, basket.x, basket.y, basket.width, basket.height);
+    }
+
+    function createFruit() {
+        const types = ['Mango', 'Mora', 'Naranja', 'Pina', 'Banano'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const orig = dimensions[type];
+        const fw = orig.w * scale.fruit;
+        const fh = orig.h * scale.fruit;
+        fruits.push({ x: Math.random() * (canvas.width - fw), y: -fh, width: fw, height: fh, speed: 2 + Math.random()*3, type, image: images[type] });
+    }
+
+    function drawFruits() { fruits.forEach(f => ctx.drawImage(f.image, f.x, f.y, f.width, f.height)); }
+    function updateFruits() { fruits.forEach(f => f.y += f.speed); fruits = fruits.filter(f => f.y < canvas.height); if (Math.random()<0.02) createFruit(); }
+
+    function checkCollision() {
+        fruits.forEach((fruit, i) => {
+            if (fruit.x < basket.x + basket.width && fruit.x + fruit.width > basket.x && fruit.y < basket.y + basket.height && fruit.y + fruit.height > basket.y) {
+                score++; changeBasketSprite(fruit.type); fruits.splice(i,1);
+                scoreDisplay.textContent = 'Puntos: ' + score;
+                if (score >= 20) { winMessage.style.display='block'; gameRunning=false; }
+            }
+        });
+    }
+
+    function changeBasketSprite(type) {
+        let orig, factor;
+        if (['Mango','Mora','Naranja','Pina','Banano'].includes(type)) {
+            const juiceType = (type==='Pina'||type==='Banano')?'JugoTropical':`Jugo${type}`;
+            orig = dimensions[juiceType]; factor = scale.juice; basket.image=images[juiceType];
+        } else {
+            orig = dimensions['Canasta']; factor = scale.basket; basket.image=images['Canasta'];
+        }
+        basket.width = orig.w * factor;
+        basket.height = orig.h * factor;
+        basket.x = Math.min(Math.max(basket.x,0),canvas.width - basket.width);
+        basket.y = canvas.height - basket.height;
+    }
+
+    function updateGame() {
+        if (!gameRunning) return;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        drawBasket(); drawFruits(); updateFruits(); checkCollision();
+        requestAnimationFrame(updateGame);
+    }
+
+    window.addEventListener('keydown', e => {
+        if (!gameRunning) return;
+        if (e.code==='ArrowLeft') basket.x = Math.max(0,basket.x - basket.speed);
+        if (e.code==='ArrowRight') basket.x = Math.min(canvas.width - basket.width, basket.x + basket.speed);
+    });
+</script>
+
+</body>
+</html>
