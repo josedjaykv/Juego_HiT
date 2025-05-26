@@ -16,13 +16,13 @@
             height: 100vh;
             margin: 0;
             padding: 20px; /* espacio entre borde de pantalla y juego */
-            overflow: auto;
+            overflow: hidden;
         }
         .game-container {
             position: relative;
             width: 90vw;
             max-width: 600px;
-            /* Mantener proporción 600x700 */
+            max-height: calc(100vh - 40px); /* asegurar que quepa verticalmente */
             aspect-ratio: 600 / 700;
             background: linear-gradient(to bottom, #d0f0c0, #a0d080);
             overflow: hidden;
@@ -34,6 +34,7 @@
         canvas {
             width: 100%;
             height: 100%;
+            display: block;
         }
         #startButton, #restartButton {
             padding: 15px 30px;
@@ -60,23 +61,24 @@
             background: rgba(255, 255, 255, 0.8);
             padding: 10px 20px;
             border-radius: 20px;
-            font-size: 22px;
+            font-size: 2vw;
             font-weight: bold;
             color: #333;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             z-index: 5;
+            min-font-size: 16px;
         }
         #winMessage {
             display: none;
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 32px;
+            font-size: 6vw;
             font-weight: bold;
             text-align: center;
             color: #fff;
             background: linear-gradient(45deg, #00F260, #0575E6);
-            padding: 20px 40px;
+            padding: 2vw 4vw;
             border-radius: 35px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
             animation: pulse 1s infinite alternate;
@@ -109,6 +111,16 @@
     const gameContainer = document.getElementById("gameContainer");
     const scoreDisplay = document.getElementById("scoreDisplay");
 
+    // Ajustar sistema interno de coordenadas al tamaño real
+    function resizeCanvas() {
+        const rect = gameContainer.getBoundingClientRect();
+        canvas.width = 600;
+        canvas.height = 700;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
     const dimensions = { Canasta: {w:190,h:200}, Mango:{w:75,h:100}, Mora:{w:75,h:100}, Naranja:{w:75,h:100}, Pina:{w:75,h:100}, Banano:{w:75,h:100}, JugoMango:{w:214,h:629}, JugoMora:{w:214,h:629}, JugoNaranja:{w:214,h:629}, JugoTropical:{w:214,h:629} };
     const scale = { fruit:0.5, basket:0.5, juice:0.2 };
     const images = {};
@@ -127,6 +139,7 @@
         winMessage.style.display='none';
         changeBasketSprite('Canasta');
         gameRunning=true;
+        resizeCanvas();
         requestAnimationFrame(updateGame);
     }
 
